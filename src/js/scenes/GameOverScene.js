@@ -10,6 +10,7 @@ export default class GameOverScene extends Phaser.Scene {
     this.finalScore = data.score || 0;
     this.finalLevel = data.level || 1;
     this.finalLines = data.lines || 0;
+    this.maxCombo = data.maxCombo || 0;
   }
 
   create() {
@@ -64,9 +65,17 @@ export default class GameOverScene extends Phaser.Scene {
     linesText.setOrigin(0.5);
     linesText.setAlpha(0);
 
+    const comboText = this.add.text(width / 2, height / 4 + 200, `최대 콤보: ${this.maxCombo}x`, {
+      fontSize: '24px',
+      fontFamily: 'Arial',
+      color: this.maxCombo >= 10 ? '#ff00ff' : (this.maxCombo >= 5 ? '#ff6600' : '#aaaaaa')
+    });
+    comboText.setOrigin(0.5);
+    comboText.setAlpha(0);
+
     // 순차적 페이드인
     this.tweens.add({
-      targets: [scoreText, levelText, linesText],
+      targets: [scoreText, levelText, linesText, comboText],
       alpha: 1,
       duration: 400,
       delay: 500,

@@ -13,6 +13,10 @@ export default class GameScene extends Phaser.Scene {
     this.gameOver = false;
     this.isPaused = false;
     
+    // 콤보 시스템
+    this.combo = 0;
+    this.maxCombo = 0;
+    
     // 게임 보드 설정
     this.COLS = 10;
     this.ROWS = 20;
@@ -83,8 +87,10 @@ export default class GameScene extends Phaser.Scene {
     this.dropInterval = 1000; // 1초
     
     // 키 입력 딜레이
-    this.moveDelay = 150;
+    this.moveDelay = 100; // 좌우 이동 (살짝 더 빠르게: 150 → 100ms)
+    this.softDropDelay = 50; // 소프트 드롭 (살짝 더 느리게: 30 → 50ms)
     this.lastMoveTime = 0;
+    this.lastSoftDropTime = 0;
   }
 
   create() {
@@ -162,6 +168,17 @@ export default class GameScene extends Phaser.Scene {
       fontFamily: 'Arial Bold',
       color: '#ffffff'
     });
+    
+    // 콤보 표시 (중앙 상단에 크게)
+    this.comboText = this.add.text(width / 2, 30, '', {
+      fontSize: '48px',
+      fontFamily: 'Arial Black',
+      color: '#ffff00',
+      stroke: '#ff6600',
+      strokeThickness: 4
+    });
+    this.comboText.setOrigin(0.5);
+    this.comboText.setVisible(false);
     
     // 음소거 버튼
     this.muteButton = this.add.text(uiX, height - 100, '🔊 사운드', {
@@ -261,18 +278,22 @@ export default class GameScene extends Phaser.Scene {
       this.dropTimer = 0;
     }
     
-    // 키 입력 처리 (딜레이 적용)
     const currentTime = time;
+    
+    // 소프트 드롭 (아래 키) - 빠른 딜레이 적용
+    if (this.cursors.down.isDown && currentTime - this.lastSoftDropTime > this.softDropDelay) {
+      this.moveDown();
+      this.dropTimer = 0;
+      this.lastSoftDropTime = currentTime;
+    }
+    
+    // 좌우 이동 (일반 딜레이 적용)
     if (currentTime - this.lastMoveTime > this.moveDelay) {
       if (this.cursors.left.isDown) {
         this.moveLeft();
         this.lastMoveTime = currentTime;
       } else if (this.cursors.right.isDown) {
         this.moveRight();
-        this.lastMoveTime = currentTime;
-      } else if (this.cursors.down.isDown) {
-        this.moveDown();
-        this.dropTimer = 0;
         this.lastMoveTime = currentTime;
       }
     }
@@ -599,7 +620,12 @@ export default class GameScene extends Phaser.Scene {
     this.canHold = true;
     
     // 줄 완성 체크
-    this.checkLines();
+    const clearedLines = this.checkLines();
+    
+    // 라인을 클리어하지 못했으면 콤보 리셋
+    if (clearedLines === 0) {
+      this.resetCombo();
+    }
     
     // 다음 블록 생성
     this.spawnPiece();
@@ -652,6 +678,15 @@ export default class GameScene extends Phaser.Scene {
     }
     
     if (linesCleared > 0) {
+      // 콤보 증가
+      this.combo++;
+      if (this.combo > this.maxCombo) {
+        this.maxCombo = this.combo;
+      }
+      
+      // 콤보 표시
+      this.showCombo();
+      
       // 라인 클리어 사운드
       if (linesCleared === 4) {
         this.soundManager.playTetris(); // 테트리스!
@@ -687,6 +722,8 @@ export default class GameScene extends Phaser.Scene {
         }
       });
     }
+    
+    return linesCleared;
   }
 
   flashLines(rows, callback) {
@@ -720,8 +757,123 @@ export default class GameScene extends Phaser.Scene {
 
   updateScore(linesCleared) {
     const points = [0, 100, 300, 500, 800];
-    this.score += points[linesCleared] * this.level;
+    let baseScore = points[linesCleared] * this.level;
+    
+    // 콤보 보너스 (2콤보부터 적용: 콤보당 50점 추가)
+    if (this.combo > 1) {
+      const comboBonus = (this.combo - 1) * 50 * this.level;
+      baseScore += comboBonus;
+      
+      // 콤보 보너스 표시
+      this.showScorePopup(comboBonus, '콤보 보너스!');
+    }
+    
+    this.score += baseScore;
     this.scoreText.setText(this.score.toString());
+  }
+  
+  showCombo() {
+    if (this.combo === 1) {
+      // 첫 콤보는 표시하지 않음
+      return;
+    }
+    
+    // 콤보 사운드 재생
+    this.soundManager.playCombo(this.combo);
+    
+    // 콤보 텍스트 업데이트
+    this.comboText.setText(`${this.combo} COMBO!`);
+    this.comboText.setVisible(true);
+    
+    // 콤보 수에 따라 색상 변경
+    if (this.combo >= 10) {
+      this.comboText.setColor('#ff00ff'); // 보라색
+      this.comboText.setStroke('#ff0000', 5);
+    } else if (this.combo >= 5) {
+      this.comboText.setColor('#ff6600'); // 주황색
+      this.comboText.setStroke('#ff0000', 4);
+    } else {
+      this.comboText.setColor('#ffff00'); // 노란색
+      this.comboText.setStroke('#ff6600', 4);
+    }
+    
+    // 기존 트윈 제거
+    this.tweens.killTweensOf(this.comboText);
+    
+    // 콤보 애니메이션
+    this.comboText.setScale(1);
+    this.comboText.setAlpha(1);
+    
+    this.tweens.add({
+      targets: this.comboText,
+      scale: { from: 1.5, to: 1 },
+      duration: 300,
+      ease: 'Back.easeOut'
+    });
+    
+    // 콤보가 높을수록 화면 효과 강화
+    if (this.combo >= 5) {
+      this.cameras.main.flash(150, 255, 100, 0, false, (camera, progress) => {
+        if (progress === 1 && this.combo >= 10) {
+          this.cameras.main.shake(200, 0.005);
+        }
+      });
+    }
+  }
+  
+  resetCombo() {
+    if (this.combo > 0) {
+      // 콤보 종료 애니메이션
+      this.tweens.add({
+        targets: this.comboText,
+        alpha: 0,
+        scale: 0.5,
+        duration: 300,
+        ease: 'Power2',
+        onComplete: () => {
+          this.comboText.setVisible(false);
+        }
+      });
+      
+      this.combo = 0;
+    }
+  }
+  
+  showScorePopup(score, text) {
+    // 점수 팝업 표시
+    const popup = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height / 2,
+      `+${score}\n${text}`,
+      {
+        fontSize: '32px',
+        fontFamily: 'Arial Black',
+        color: '#00ff00',
+        stroke: '#006600',
+        strokeThickness: 3,
+        align: 'center'
+      }
+    );
+    popup.setOrigin(0.5);
+    popup.setAlpha(0);
+    
+    this.tweens.add({
+      targets: popup,
+      alpha: 1,
+      y: popup.y - 50,
+      duration: 500,
+      ease: 'Power2'
+    });
+    
+    this.tweens.add({
+      targets: popup,
+      alpha: 0,
+      duration: 300,
+      delay: 700,
+      onComplete: () => {
+        popup.destroy();
+      }
+    });
   }
 
   togglePause() {
@@ -754,7 +906,8 @@ export default class GameScene extends Phaser.Scene {
       this.scene.start('GameOverScene', { 
         score: this.score, 
         level: this.level,
-        lines: this.linesCleared
+        lines: this.linesCleared,
+        maxCombo: this.maxCombo
       });
     });
   }

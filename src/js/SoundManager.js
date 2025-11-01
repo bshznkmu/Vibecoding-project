@@ -242,6 +242,34 @@ export default class SoundManager {
     osc.stop(this.audioContext.currentTime + 0.1);
   }
 
+  // 콤보 사운드
+  playCombo(comboCount) {
+    if (this.isMuted || !this.audioContext) return;
+    
+    // 콤보 수에 따라 주파수와 복잡도 증가
+    const baseFreq = 600 + (comboCount * 50);
+    const notes = [baseFreq, baseFreq * 1.25, baseFreq * 1.5];
+    
+    notes.forEach((freq, i) => {
+      const osc = this.audioContext.createOscillator();
+      const gain = this.audioContext.createGain();
+      
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      
+      osc.frequency.value = freq;
+      osc.type = 'triangle';
+      
+      const startTime = this.audioContext.currentTime + i * 0.04;
+      const volume = Math.min(0.2, 0.1 + (comboCount * 0.01));
+      gain.gain.value = volume;
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
+      
+      osc.start(startTime);
+      osc.stop(startTime + 0.15);
+    });
+  }
+
   // 음소거 토글
   toggleMute() {
     this.isMuted = !this.isMuted;
