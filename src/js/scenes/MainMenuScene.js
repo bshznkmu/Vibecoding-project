@@ -1,3 +1,5 @@
+import SoundManager from '../SoundManager.js';
+
 export default class MainMenuScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MainMenuScene' });
@@ -5,6 +7,9 @@ export default class MainMenuScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.cameras.main;
+    
+    // 사운드 매니저 초기화
+    this.soundManager = new SoundManager(this);
 
     // 배경색 설정
     this.cameras.main.setBackgroundColor('#1a1a2e');
@@ -47,6 +52,7 @@ export default class MainMenuScene extends Phaser.Scene {
     });
 
     startButton.on('pointerdown', () => {
+      this.soundManager.playMenuSelect();
       this.scene.start('GameScene');
     });
 
@@ -70,6 +76,7 @@ export default class MainMenuScene extends Phaser.Scene {
     });
 
     leaderboardButton.on('pointerdown', () => {
+      this.soundManager.playMenuSelect();
       this.scene.start('LeaderboardScene');
     });
 
@@ -80,6 +87,7 @@ export default class MainMenuScene extends Phaser.Scene {
       '↓ : 소프트 드롭',
       '↑ : 회전',
       'Space : 하드 드롭',
+      'C : 홀드',
       'P : 일시정지'
     ];
 

@@ -1,3 +1,5 @@
+import SoundManager from '../SoundManager.js';
+
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' });
@@ -72,6 +74,10 @@ export default class GameScene extends Phaser.Scene {
     // 다음 블록
     this.nextPiece = null;
     
+    // 홀드 블록
+    this.holdPiece = null;
+    this.canHold = true; // 한 턴에 한 번만 홀드 가능
+    
     // 타이머
     this.dropTimer = 0;
     this.dropInterval = 1000; // 1초
@@ -83,6 +89,9 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.cameras.main;
+    
+    // 사운드 매니저 초기화
+    this.soundManager = new SoundManager(this);
     
     // 배경색
     this.cameras.main.setBackgroundColor('#0f0f1e');
@@ -154,7 +163,40 @@ export default class GameScene extends Phaser.Scene {
       color: '#ffffff'
     });
     
-    const nextLabel = this.add.text(uiX, 350, '다음 블록', {
+    // 음소거 버튼
+    this.muteButton = this.add.text(uiX, height - 100, '🔊 사운드', {
+      fontSize: '24px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      backgroundColor: '#16213e',
+      padding: { x: 20, y: 10 }
+    });
+    this.muteButton.setInteractive({ useHandCursor: true });
+    this.muteButton.on('pointerdown', () => {
+      const isMuted = this.soundManager.toggleMute();
+      this.muteButton.setText(isMuted ? '🔇 음소거' : '🔊 사운드');
+      this.soundManager.playMenuSelect();
+    });
+    this.muteButton.on('pointerover', () => {
+      this.muteButton.setStyle({ backgroundColor: '#0f3460' });
+    });
+    this.muteButton.on('pointerout', () => {
+      this.muteButton.setStyle({ backgroundColor: '#16213e' });
+    });
+    
+    // 홀드 블록 영역
+    const holdLabel = this.add.text(uiX, 350, '홀드 (C)', {
+      fontSize: '24px',
+      fontFamily: 'Arial',
+      color: '#00d9ff'
+    });
+    
+    this.holdPieceGraphics = this.add.graphics();
+    this.holdPieceX = uiX;
+    this.holdPieceY = 390;
+    
+    // 다음 블록 영역
+    const nextLabel = this.add.text(uiX, 490, '다음 블록', {
       fontSize: '24px',
       fontFamily: 'Arial',
       color: '#00d9ff'
@@ -163,7 +205,7 @@ export default class GameScene extends Phaser.Scene {
     // 다음 블록 미리보기 영역
     this.nextPieceGraphics = this.add.graphics();
     this.nextPieceX = uiX;
-    this.nextPieceY = 390;
+    this.nextPieceY = 530;
     
     // 일시정지 오버레이
     this.pauseOverlay = this.add.rectangle(
@@ -190,12 +232,18 @@ export default class GameScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.pKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P);
+    this.cKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
     
     // 키 이벤트 리스너
     this.input.keyboard.on('keydown-P', this.togglePause, this);
     this.input.keyboard.on('keydown-SPACE', () => {
       if (!this.gameOver && !this.isPaused) {
         this.hardDrop();
+      }
+    });
+    this.input.keyboard.on('keydown-C', () => {
+      if (!this.gameOver && !this.isPaused) {
+        this.holdCurrentPiece();
       }
     });
     
@@ -238,6 +286,7 @@ export default class GameScene extends Phaser.Scene {
     this.drawBoard();
     this.drawCurrentPiece();
     this.drawNextPiece();
+    this.drawHoldPiece();
   }
 
   drawGrid() {
@@ -362,6 +411,36 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  drawHoldPiece() {
+    this.holdPieceGraphics.clear();
+    
+    if (!this.holdPiece) return;
+    
+    const shape = this.tetrominoes[this.holdPiece].shape;
+    const color = this.tetrominoes[this.holdPiece].color;
+    const alpha = this.canHold ? 1 : 0.3; // 홀드 불가능할 때 흐리게
+    
+    const offsetX = this.holdPieceX;
+    const offsetY = this.holdPieceY;
+    
+    for (let row = 0; row < shape.length; row++) {
+      for (let col = 0; col < shape[row].length; col++) {
+        if (shape[row][col]) {
+          const x = offsetX + col * this.BLOCK_SIZE;
+          const y = offsetY + row * this.BLOCK_SIZE;
+          
+          // 메인 블록
+          this.holdPieceGraphics.fillStyle(color, alpha);
+          this.holdPieceGraphics.fillRect(x, y, this.BLOCK_SIZE - 2, this.BLOCK_SIZE - 2);
+          
+          // 하이라이트
+          this.holdPieceGraphics.fillStyle(0xffffff, 0.3 * alpha);
+          this.holdPieceGraphics.fillRect(x + 1, y + 1, this.BLOCK_SIZE - 4, 4);
+        }
+      }
+    }
+  }
+
   spawnPiece() {
     if (!this.nextPiece) {
       this.nextPiece = this.getRandomTetromino();
@@ -438,6 +517,7 @@ export default class GameScene extends Phaser.Scene {
     const shape = this.getCurrentShape();
     if (!this.checkCollision(this.currentX - 1, this.currentY, shape)) {
       this.currentX--;
+      this.soundManager.playMove();
     }
   }
 
@@ -445,6 +525,7 @@ export default class GameScene extends Phaser.Scene {
     const shape = this.getCurrentShape();
     if (!this.checkCollision(this.currentX + 1, this.currentY, shape)) {
       this.currentX++;
+      this.soundManager.playMove();
     }
   }
 
@@ -478,6 +559,7 @@ export default class GameScene extends Phaser.Scene {
         this.currentX += kick.x;
         this.currentY += kick.y;
         this.currentRotation = newRotation;
+        this.soundManager.playRotate();
         return;
       }
     }
@@ -488,6 +570,7 @@ export default class GameScene extends Phaser.Scene {
     while (!this.checkCollision(this.currentX, this.currentY + 1, shape)) {
       this.currentY++;
     }
+    this.soundManager.playHardDrop();
     this.lockPiece();
   }
 
@@ -509,11 +592,52 @@ export default class GameScene extends Phaser.Scene {
       }
     }
     
+    // 착지 사운드
+    this.soundManager.playLand();
+    
+    // 홀드 가능하도록 설정
+    this.canHold = true;
+    
     // 줄 완성 체크
     this.checkLines();
     
     // 다음 블록 생성
     this.spawnPiece();
+  }
+
+  holdCurrentPiece() {
+    // 홀드가 불가능하면 무시
+    if (!this.canHold) return;
+    
+    const currentPieceType = this.currentPiece;
+    
+    if (this.holdPiece === null) {
+      // 홀드가 비어있으면 현재 블록을 홀드하고 다음 블록 가져오기
+      this.holdPiece = currentPieceType;
+      this.spawnPiece();
+    } else {
+      // 홀드된 블록과 교환
+      this.currentPiece = this.holdPiece;
+      this.holdPiece = currentPieceType;
+      this.currentRotation = 0;
+      
+      // 새 블록 위치 설정
+      const shape = this.getCurrentShape();
+      this.currentX = Math.floor(this.COLS / 2) - Math.floor(shape[0].length / 2);
+      this.currentY = 0;
+      
+      // 만약 교환한 블록이 놓일 수 없는 위치라면 게임 오버
+      if (this.checkCollision(this.currentX, this.currentY, shape)) {
+        this.endGame();
+        return;
+      }
+    }
+    
+    // 홀드 사운드
+    this.soundManager.playHold();
+    
+    // 이번 턴에는 더 이상 홀드 불가
+    this.canHold = false;
   }
 
   checkLines() {
@@ -528,6 +652,13 @@ export default class GameScene extends Phaser.Scene {
     }
     
     if (linesCleared > 0) {
+      // 라인 클리어 사운드
+      if (linesCleared === 4) {
+        this.soundManager.playTetris(); // 테트리스!
+      } else {
+        this.soundManager.playLineClear(linesCleared);
+      }
+      
       // 라인 클리어 애니메이션
       this.flashLines(clearedRows, () => {
         // 줄 삭제
@@ -552,6 +683,7 @@ export default class GameScene extends Phaser.Scene {
           
           // 레벨 업 효과
           this.cameras.main.flash(200, 0, 217, 255);
+          this.soundManager.playLevelUp();
         }
       });
     }
@@ -559,10 +691,10 @@ export default class GameScene extends Phaser.Scene {
 
   flashLines(rows, callback) {
     let flashCount = 0;
-    const maxFlashes = 3;
+    const maxFlashes = 2; // 깜빡임 횟수 줄임 (3 -> 2)
     
     const flashTimer = this.time.addEvent({
-      delay: 100,
+      delay: 50, // 더 빠른 깜빡임 (100ms -> 50ms)
       callback: () => {
         flashCount++;
         
@@ -616,6 +748,7 @@ export default class GameScene extends Phaser.Scene {
 
   endGame() {
     this.gameOver = true;
+    this.soundManager.playGameOver();
     this.cameras.main.shake(500, 0.01);
     this.time.delayedCall(500, () => {
       this.scene.start('GameOverScene', { 
@@ -624,5 +757,12 @@ export default class GameScene extends Phaser.Scene {
         lines: this.linesCleared
       });
     });
+  }
+  
+  shutdown() {
+    // Scene 종료 시 사운드 매니저 정리
+    if (this.soundManager) {
+      this.soundManager.destroy();
+    }
   }
 }

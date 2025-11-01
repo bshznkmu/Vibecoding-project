@@ -1,4 +1,5 @@
 import { saveScore } from '../firebase.js';
+import SoundManager from '../SoundManager.js';
 
 export default class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -13,6 +14,9 @@ export default class GameOverScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.cameras.main;
+    
+    // 사운드 매니저 초기화
+    this.soundManager = new SoundManager(this);
 
     // 배경색
     this.cameras.main.setBackgroundColor('#1a1a2e');
@@ -162,6 +166,7 @@ export default class GameOverScene extends Phaser.Scene {
 
     saveButton.on('pointerdown', () => {
       if (this.playerName.length > 0) {
+        this.soundManager.playMenuSelect();
         this.submitScore();
       }
     });
@@ -190,6 +195,7 @@ export default class GameOverScene extends Phaser.Scene {
     });
 
     restartButton.on('pointerdown', () => {
+      this.soundManager.playMenuSelect();
       this.scene.start('GameScene');
     });
 
@@ -214,6 +220,7 @@ export default class GameOverScene extends Phaser.Scene {
     });
 
     menuButton.on('pointerdown', () => {
+      this.soundManager.playMenuSelect();
       this.scene.start('MainMenuScene');
     });
 

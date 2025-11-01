@@ -1,4 +1,5 @@
 import { getTopScores } from '../firebase.js';
+import SoundManager from '../SoundManager.js';
 
 export default class LeaderboardScene extends Phaser.Scene {
   constructor() {
@@ -7,6 +8,9 @@ export default class LeaderboardScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.cameras.main;
+    
+    // 사운드 매니저 초기화
+    this.soundManager = new SoundManager(this);
 
     // 배경색
     this.cameras.main.setBackgroundColor('#1a1a2e');
@@ -88,6 +92,7 @@ export default class LeaderboardScene extends Phaser.Scene {
     });
 
     backButton.on('pointerdown', () => {
+      this.soundManager.playMenuSelect();
       this.scene.start('MainMenuScene');
     });
   }
