@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tetris - Phaser Edition</title>
+  <link rel="stylesheet" href="src/style.css">
+  
+  <!-- Phaser 3 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+</head>
+<body>
+  <div id="game-container">
+    <div id="game"></div>
+  </div>
+
+  <!-- 게임 메인 스크립트 -->
+  <script type="module">
+    import MainMenuScene from './src/js/scenes/MainMenuScene.js';
+    import GameScene from './src/js/scenes/GameScene.js';
+    import GameOverScene from './src/js/scenes/GameOverScene.js';
+    import LeaderboardScene from './src/js/scenes/LeaderboardScene.js';
+
+    // Phaser 게임 설정
+    const config = {
+      type: Phaser.AUTO,
+      width: 800,
+      height: 700,
+      parent: 'game',
+      backgroundColor: '#0f0f1e',
+      scene: [MainMenuScene, GameScene, GameOverScene, LeaderboardScene],
+      scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+      },
+      pixelArt: false,
+      antialias: true
+    };
+
+    // 게임 인스턴스 생성
+    window.game = new Phaser.Game(config);
+  </script>
+</body>
+</html>
