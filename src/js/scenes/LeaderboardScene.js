@@ -53,18 +53,20 @@ export default class LeaderboardScene extends Phaser.Scene {
     // 랭킹 불러오기
     this.loadLeaderboard(loadingText);
 
-    // 뒤로 가기 버튼
-    const backButton = this.add.text(width / 2, height - 80, '메인 메뉴', {
-      fontSize: '28px',
+    // 뒤로 가기 버튼 (오른쪽 상단으로 이동)
+    // origin을 (1, 0)으로 설정하여 오른쪽-상단 정렬이 안정적입니다.
+    const backButton = this.add.text(width - 20, 20, '메인 메뉴', {
+      fontSize: '22px',
       fontFamily: 'Arial',
       color: '#ffffff',
       backgroundColor: '#16213e',
-      padding: { x: 30, y: 15 }
+      padding: { x: 16, y: 10 }
     });
-    backButton.setOrigin(0.5);
+    backButton.setOrigin(1, 0); // 오른쪽 상단 기준 정렬
     backButton.setInteractive({ useHandCursor: true });
     backButton.setAlpha(0);
 
+    // 부드러운 페이드인 (딜레이는 타이틀/패널 로드와 겹치지 않게)
     this.tweens.add({
       targets: backButton,
       alpha: 1,
@@ -77,8 +79,9 @@ export default class LeaderboardScene extends Phaser.Scene {
       backButton.setStyle({ backgroundColor: '#0f3460' });
       this.tweens.add({
         targets: backButton,
-        scale: 1.1,
-        duration: 100
+        scale: 1.08,
+        duration: 120,
+        ease: 'Power2'
       });
     });
 
@@ -87,7 +90,8 @@ export default class LeaderboardScene extends Phaser.Scene {
       this.tweens.add({
         targets: backButton,
         scale: 1,
-        duration: 100
+        duration: 120,
+        ease: 'Power2'
       });
     });
 
@@ -195,21 +199,7 @@ export default class LeaderboardScene extends Phaser.Scene {
       delay: 400
     });
 
-    // 구분선
-    const line = this.add.graphics();
-    line.lineStyle(2, 0x00d9ff, 0.5);
-    line.beginPath();
-    line.moveTo(width / 2 - 250, headerY + 35);
-    line.lineTo(width / 2 + 250, headerY + 35);
-    line.strokePath();
-    line.setAlpha(0);
-
-    this.tweens.add({
-      targets: line,
-      alpha: 1,
-      duration: 400,
-      delay: 600
-    });
+    // 기존의 그래픽 구분선(초록/청색 실선)은 제거되었습니다.
 
     // 랭킹 데이터
     const dataStartY = headerY + 50;
@@ -314,28 +304,6 @@ export default class LeaderboardScene extends Phaser.Scene {
       });
     });
 
-    // 통계 표시
-    if (scores.length > 0) {
-      const totalPlayers = scores.length;
-      const highScore = scores[0].score;
-      
-      const statsY = dataStartY + scores.length * lineHeight + 30;
-      
-      const statsText = this.add.text(width / 2, statsY, 
-        `총 ${totalPlayers}명 참여  •  최고 점수: ${highScore.toLocaleString()}`, {
-        fontSize: '16px',
-        fontFamily: 'Arial',
-        color: '#888888'
-      });
-      statsText.setOrigin(0.5);
-      statsText.setAlpha(0);
-      
-      this.tweens.add({
-        targets: statsText,
-        alpha: 1,
-        duration: 400,
-        delay: 1000 + scores.length * 50
-      });
-    }
+    // 통계 텍스트(총 참여자 / 최고 점수)는 요청에 따라 제거되었습니다.
   }
 }
